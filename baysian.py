@@ -24,14 +24,18 @@ def correct_sets(data: dict, set: str) -> list:
 
 def likelihood(data: dict):
     correct = np.zeros((255,NUMHYPOTHESIS))
+    total = np.zeros(255)
     for i, set in enumerate(data):
         hypotheses = correct_sets(data, set)
         for j, hypothesis in enumerate(hypotheses):
                 correct_targets_yes = data[set][hypothesis, 1]
                 mask = np.ones(100, dtype=bool)
                 mask[hypothesis] = False
-                correct_targets_no = data[mask, 0]
+                correct_targets_no = data[set][mask, 0]
                 correct[i][j] = np.sum(correct_targets_yes) + np.sum(correct_targets_no)
+                total[i] = np.sum(data[set])
+
+    return correct/total
 
 
 def preprocess(data: pd.DataFrame) -> dict:
