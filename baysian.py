@@ -8,6 +8,7 @@ NUMHYPOTHESIS = 25
 def Posterior(prior: np.ndarray, likelihood: np.ndarray) -> np.ndarray:
     return np.multiply(prior, likelihood)
 
+#converts the string representation of the set to a set of ints
 def str_to_set(str: str) -> set:
     split_str = set.split()
     int_list = [int(num.replace('_', '')) for num in split_str]
@@ -21,8 +22,8 @@ def correct_sets(data: dict, set: str) -> list:
 
     ...
 
-
-def likelihood(data: dict):
+#returns a #sets by #hypotheses numpy array of likelihoods
+def likelihood(data: dict) -> np.ndarray:
     correct = np.zeros((255,NUMHYPOTHESIS))
     total = np.zeros(255)
     for i, set in enumerate(data):
@@ -37,7 +38,7 @@ def likelihood(data: dict):
 
     return correct/total
 
-
+#creates a dict of all the responses by set
 def preprocess(data: pd.DataFrame) -> dict:
     results = {}
     for trial in data.itertuples():
@@ -46,10 +47,6 @@ def preprocess(data: pd.DataFrame) -> dict:
         results[trial.set][trial.target - 1][trial.rating] += 1
     return results
 
-def load_data(file_name: str) -> pd.DataFrame:
-    data = pd.read_csv(file_name)
-    return data
 
-file = load_data('numbergame_data.csv')
+file = pd.read_csv('numbergame_data.csv')
 data = preprocess(file)
-print(type(next(iter(data))))
