@@ -3,7 +3,7 @@ import pandas as pd
 from bayesracemodel import load_priors
 
 NUMHYPOTHESIS = 101
-
+CONSTANT = 1e-6
 #calculates posteriors from priors and likelihoods
 def Posterior(prior: np.ndarray, likelihood: np.ndarray) -> np.ndarray:
     return np.multiply(prior, likelihood)
@@ -237,6 +237,7 @@ likelihoods = set_likelihood(sets_int, hypotheses)
 
 posteriors = Posterior(load_priors('cog260-project/260concepts - priorsheet.csv'), likelihoods)
 
+print(np.max((posteriors == 0).sum(axis=1)))
 import pprint
 pprint.pprint(posteriors)
 best_h = np.argmax(posteriors, axis=1)
