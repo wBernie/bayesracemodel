@@ -93,7 +93,7 @@ def load_priors(csv_file: str) -> np.ndarray:
     df = df["count"].to_numpy()[np.newaxis, :]
     df = df/df.sum()
 
-    return df["count"].to_numpy()[np.newaxis, :]
+    return df
 
 
 def calc_error_for_participant(df: pd.DataFrame, highest_prob_functions=List):

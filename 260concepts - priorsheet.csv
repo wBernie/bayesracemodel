@@ -1,0 +1,148 @@
+concept,count,comments,used
+even,588,,yes
+odd,563,,yes
+btw,398,shud take the original set as one of the arguments,yes
+prime number,31,,yes
+non-prime,4,,yes
+same numbers,8,shud take the original set as one of the arguments,yes
+2-digit,11,,yes
+single digit,3,,yes
+mirrored,1,shud take the original set as one of the arguments,no
+add digits = odd,1,,yes
+greatest common value is 1?,1,shud take the original set as one of the arguments,no
+alternate even odd,1,,no
+half even half odd,1,,no
+Each successive number has a same digit as the one previous to it.,1,shud take the original set as one of the arguments,no
+not multiple of 3,2,,yes
+multiples of 3,89,,yes
+multiples of 4,39,,yes
+multiples of 5,84,,yes
+multiples of 6,14,,yes
+multiples of 7,33,,yes
+multiples of 8,38,,yes
+multiples of 9,33,,yes
+multiples of 10,36,,yes
+multiples of 11,10,,yes
+mutliples of 12,6,,yes
+multiple of 13,1,,yes
+multiples of 15,2,,yes
+multiples of 16,1,,yes
+multple of 17,1,,yes
+multiples of 20,1,,yes
+multiple of 25,2,,yes
+multiples of 29,1,,yes
+multiples of 33,1,,yes
+mutliples of 100,1,,yes
+contains 0,1,,yes
+contains 1,18,,yes
+contains 2,23,,yes
+contains 3,27,,yes
+contains 4,6,,yes
+contains 5,20,,yes
+contains 6,14,,yes
+contains 7,9,,yes
+contains 8,20,,yes
+contains 9,11,,yes
+contain even ,1,,yes
+>31,1,you can model all of these as betweens,yes
+> 4,1,you can model all of these as betweens,yes
+> 78,1,you can model all of these as betweens,yes
+< 81,1,you can model all of these as betweens,yes
+> 25,2,you can model all of these as betweens,yes
+< 50,1,you can model all of these as betweens,yes
+< 10,5,you can model all of these as betweens,yes
+3*(x^2),1,,yes
+x^2,12,,yes
+is 93,1,,yes
+< 30,5,you can model all of these as betweens,yes
+<65 ,1,you can model all of these as betweens,yes
+> 40,1,you can model all of these as betweens,yes
+< 100,3,you can model all of these as betweens,yes
+> 98,1,you can model all of these as betweens,yes
+> 91,1,you can model all of these as betweens,yes
+< 4,1,you can model all of these as betweens,yes
+< 83,1,you can model all of these as betweens,yes
+inc by mult 6,1,shud take the original set as one of the arguments,no
+inc by 24,1,shud take the original set as one of the arguments,no
+inc/dec by 15,3,shud take the original set as one of the arguments,no
+digits inc by 1,1,shud take the original set as one of the arguments,no
+inc/dec by 12,1,shud take the original set as one of the arguments,no
+inc/dec by 27,1,shud take the original set as one of the arguments,no
+inc by 27,1,shud take the original set as one of the arguments,no
+inc divide by 4,1,shud take the original set as one of the arguments,no
+inc by 1,2,shud take the original set as one of the arguments,no
+inc by 57,1,shud take the original set as one of the arguments,no
+inc,6,shud take the original set as one of the arguments,no
+inc by 20,2,shud take the original set as one of the arguments,no
+div by half,2,shud take the original set as one of the arguments,no
+inc by 30 + 3n,1,shud take the original set as one of the arguments,no
+inc by 45,1,shud take the original set as one of the arguments,no
+inc by 4,2,shud take the original set as one of the arguments,no
+inc/dec by 20,1,shud take the original set as one of the arguments,no
+inc./dec by 16,1,shud take the original set as one of the arguments,no
+inc by 2^n,1,shud take the original set as one of the arguments,no
+inc/dec 11,2,shud take the original set as one of the arguments,no
+dec by 40,2,shud take the original set as one of the arguments,no
+dec by 6,0,,no
+dec by 20,2,shud take the original set as one of the arguments,no
+inc 28 + (20*n),1,shud take the original set as one of the arguments,no
+"-40, + 20",1,shud take the original set as one of the arguments,no
+inc by 70,1,shud take the original set as one of the arguments,no
+dec,2,shud take the original set as one of the arguments,no
+inc/dec by even,1,shud take the original set as one of the arguments,no
+"7a, 11b, 7c, 11d,..",1,shud take the original set as one of the arguments,no
+inc/dec 5,1,shud take the original set as one of the arguments,no
+inc/dec 7,2,shud take the original set as one of the arguments,no
+start w 1,4,,yes
+start w 2,7,,yes
+start w 3,11,,yes
+start w 4,9,,yes
+start w 5,4,,yes
+start w 6,2,,yes
+start w 7,5,,yes
+start w 8,4,,yes
+start w 9,4,,yes
+start w even,1,,yes
+start w odd,3,,yes
+end w 0,25,,yes
+end w 1,49,,yes
+end w 2,46,,yes
+end w 3,71,,yes
+end w 4,54,,yes
+end w 5,52,,yes
+end w 6,50,,yes
+end w 7,63,,yes
+end w 8,50,,yes
+end w 9,60,,yes
+end w even,4,,yes
+end w odd,1,,yes
+start = end,1,,yes
+sum of digits = 10,1,,yes
+sum of digits = 9,1,,yes
+1-4 and 6-9 once,1,,no
+difference of numbers is 2,1,,no
+is 18,1,,yes
+is 84,1,,yes
+is 48,1,,yes
+is 43,1,,yes
+is 91,1,,yes
+is 31,1,,yes
+x^3,4,,yes
+15 +- 4*x,1,,no
+5 +- 4*x,1,,no
+<= 89,1,,no
+x*3 + 1,1,,no
+8n-1 if odd_ 8n+/- 2 if even,1,,no
+> 50,1,can be modeled as between,yes
+> 63,1,can be modeled as between,yes
+> 81,1,can be modeled as between,yes
+< 43,1,can be modeled as between,yes
+> 51,1,can be modeled as between,yes
+< 83,1,can be modeled as between,yes
+< 50,1,can be modeled as between,yes
+10n +- 2,1,,no
+3*x + 1,1,,no
+10*x + 4,1,,no
+< 45,1,can be modeled as between,yes
+< 70,1,can be modeled as between,yes
+> 70,1,can be modeled as between,yes
