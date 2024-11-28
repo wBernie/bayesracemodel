@@ -134,7 +134,7 @@ def b_inference():
     likelihoods = set_likelihood(sets_int, hypotheses)
 
     posteriors = calc_posterior(load_priors('cog260-project/data/priorsheet.csv'), likelihoods)
-    return posteriors, load_priors('cog260-project/data/priorsheet.csv'), hypotheses, sets_int
+    return posteriors, load_priors('cog260-project/data/priorsheet.csv')
 
 if __name__ == "__main__":
     file = pd.read_csv('cog260-project/data/numbergame_data.csv')
