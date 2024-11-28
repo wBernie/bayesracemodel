@@ -96,4 +96,8 @@ def load_priors(csv_file: str) -> np.ndarray:
     return df["count"].to_numpy()[np.newaxis, :]
 
 
-def calc_error(participant_df: pd.DataFrame, )
+def calc_error_for_participant(df: pd.DataFrame, highest_prob_functions=List):
+    error = 0
+    c = 0
+    for i, j in df.iterrows():
+        in_set = [int(i) for i in df["set"].split("_")]
