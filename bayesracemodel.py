@@ -89,6 +89,6 @@ def load_priors(csv_file: str) -> np.ndarray:
     #drop the "used" column now
     df.drop(columns=["used"],inplace=True)
 
-    return df["count"].to_numpy[np.newaxis, :]
+    return df["count"].to_numpy()[np.newaxis, :]
 
 
