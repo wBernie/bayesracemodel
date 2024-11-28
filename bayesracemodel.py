@@ -89,6 +89,11 @@ def load_priors(csv_file: str) -> np.ndarray:
     #drop the "used" column now
     df.drop(columns=["used"],inplace=True)
 
+    #normalize:
+    df = df["count"].to_numpy()[np.newaxis, :]
+    df = df/df.sum()
+
     return df["count"].to_numpy()[np.newaxis, :]
 
 
+def calc_error(participant_df: pd.DataFrame, )
