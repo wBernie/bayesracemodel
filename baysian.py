@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-
+from bayesracemodel import load_priors
 
 NUMHYPOTHESIS = 101
 
@@ -221,22 +221,6 @@ def preprocess(data: pd.DataFrame) -> dict:
             results[trial.set] = np.zeros((100,2))
         results[trial.set][trial.target - 1][trial.rating] += 1
     return results
-
-def load_priors(csv_file: str) -> np.ndarray:
-    """
-    Docstring goes here:
-
-    """
-    df = pd.read_csv(csv_file)
-    #remove the comments column 
-    df.drop(columns=['comments'], inplace=True)
-    #remvove the rows where the value of "used" is "no"
-    df = df[df['used'] != 'no']
-    #drop the "used" column now
-    df.drop(columns=["used"],inplace=True)
-
-    return df["count"].to_numpy()[np.newaxis, :]
-
 
 
 file = pd.read_csv('cog260-project/numbergame_data.csv')
