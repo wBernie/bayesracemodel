@@ -198,18 +198,18 @@ def set_likelihood(sets: set, hypotheses) -> np.ndarray:
 
 
 #returns a #sets by #hypotheses numpy array of likelihoods
-def likelihood(data: dict, best_h) -> np.ndarray:
+def likelihood(data: dict, best_h, hypotheses) -> np.ndarray:
     correct = np.zeros((255))
     total = np.zeros(255)
     for i, set in enumerate(data):
-        hypotheses = correct_sets(data, set)
-        for j, hypothesis in enumerate(hypotheses):
-                correct_targets_yes = data[set][hypothesis, 1]
-                mask = np.ones(100, dtype=bool)
-                mask[hypothesis] = False
-                correct_targets_no = data[set][mask, 0]
-                correct[i][j] = np.sum(correct_targets_yes) + np.sum(correct_targets_no)
-                total[i] = np.sum(data[set])
+        hypothesis = hypotheses[i][best_h[i]]
+        index = [i-1 for i in hypothesis]
+        correct_targets_yes = data[set][index, 1]
+        mask = np.ones(100, dtype=bool)
+        mask[index] = False
+        correct_targets_no = data[set][mask, 0]
+        correct[i] = np.sum(correct_targets_yes) + np.sum(correct_targets_no)
+        total[i] = np.sum(data[set])
 
     return correct/total
 
@@ -241,3 +241,5 @@ import pprint
 pprint.pprint(posteriors)
 best_h = np.argmax(posteriors, axis=1)
 
+likelihoods = likelihood(data, best_h, hypotheses)
+print(likelihoods)
