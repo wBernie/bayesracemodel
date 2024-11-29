@@ -83,6 +83,7 @@ def populate_weights(weights_index, posteriors, th):
 
 #run simulation:   
 def run_race_model_per_person(data_i, posteriors, Fs, sds, ths, p_idx=0):
+def run_race_model_per_person(data_i, posteriors, Fs, sds, ths, p_idx=0):
     race = LogNormalRace("model")
     limit = timedelta(days=15)
 
