@@ -200,6 +200,7 @@ def info_gain():
     
     target_posteriors += 1e-6
     info_gain = np.log(target_posteriors[:, :, 1:]/ target_posteriors[:, :, :-1])
+    target_posteriors = np.delete(target_posteriors, 0, 2)
     return target_posteriors, info_gain
 
 if __name__ == "__main__":
