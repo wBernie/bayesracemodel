@@ -143,7 +143,7 @@ def b_inference():
     likelihoods = sets_likelihood(sets_int, hypotheses)
 
     posteriors = calc_posterior(load_priors('cog260-project/data/priorsheet.csv'), likelihoods)
-    return posteriors, load_priors('cog260-project/data/priorsheet.csv'), hypotheses, sets_int
+    return posteriors, load_priors('cog260-project/data/priorsheet.csv')
 
 def info_gain():
     '''

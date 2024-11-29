@@ -6,6 +6,7 @@ from typing import *
 from tqdm import tqdm
 
 from bayesian_inference import b_inference, NUMHYPOTHESIS
+from fitting_params import gradient_descent
 
 class LogNormalRace(Process):
 
@@ -55,27 +56,9 @@ class LogNormalRace(Process):
 """
 The above model is to be called after fitting the parameters. We fit the parameters by running a grid search. 
 """
-from scipy.special import erfc
 import math 
 import numpy as np
 import pandas as pd
-def log_likelihood(rts: np.ndarray, concept_scores: np.ndarray, winning_concept_mask: np.ndarray, F_i: float, sd_i: float) -> pd.Series:
-    # Calculate the mean and sigma values for all rows in the DataFrame
-    mean_word = concept_scores + np.log(F_i)
-
-    sigma_word = sd_i
-    sigma_nword = sd_i
-    
-    # For correct responses (ACC = TRUE)
-    #NOTE: numerous log simplications were made. 
-    l_concept = (-np.log(rts * sigma_word * np.sqrt(2* np.pi)) - 
-              ((np.log(rts) - mean_word[(mean_word["winning_concept_score"] * winning_concept_mask).sum(axis=-1)])**2) / (2 * sigma_word**2))
-               
-    for i in range(concept_scores.shape[1]):
-        l_concept += np.log(1 - 0.5*erfc(-(np.log(rts) - mean_word[f"concept_{i}"]) / (sigma_nword * np.sqrt(2)))) * (1-winning_concept_mask[:, i:i+1])
-    
-    likelihood = np.where((-np.inf < likelihood) & (likelihood < np.inf), likelihood, np.nan)
-    return np.nansum(likelihood)
 
 #populate matrix with hypotheses:
 def populate_index(model: LogNormalRace):
@@ -83,21 +66,23 @@ def populate_index(model: LogNormalRace):
     a_index = model.main.i
     for item in range(NUMHYPOTHESIS):
         getattr(a_index.root.a, str(item))
+    a_index.root.a.th # decision threshhold
 
-def populate_weights(weights_index, posteriors):
+def populate_weights(weights_index, posteriors, th):
     weights = numdict(weights_index, {}, 0.0)
 
-    for i in weights_index:
-        key = i
-        int_key = int(str(key).split(":")[-1])
-        with weights.mutable() as d:
+    with weights.mutable() as d:
+        for i in weights_index:
+            key = i
+            if "th" in str(key):
+                d[key] = th
+            else:
+                int_key = int(str(key).split(":")[-1])
                 d[key] = posteriors[int_key]
-
     return weights
-#TODO: function to fit parameters:
 
 #run simulation:   
-def run_race_model_per_person(data_i, sets_int, posteriors, Fs, sds, p_idx=0):
+def run_race_model_per_person(data_i, sets_int, posteriors, Fs, sds, ths, p_idx=0):
     race = LogNormalRace("model")
     limit = timedelta(days=15)
 
@@ -107,7 +92,7 @@ def run_race_model_per_person(data_i, sets_int, posteriors, Fs, sds, p_idx=0):
     #load up the first datapoint
     i = 0
     s =[int(m) for m in data_i.iloc[i]["set"].split("_ ")]
-    sample = populate_weights(race.sample.i, posteriors[sets_int.index(s)])
+    sample = populate_weights(race.sample.i, posteriors[p_idx, sets_int.index(s), i], ths[p_idx])
     
     #there will be no populating input -- since considdering the input is done in creating the posterior
     params_data = numdict(race.params.i, {"p:model:F": Fs[p_idx], "p:model:sd": math.sqrt(sds[p_idx])}, 0)
@@ -116,83 +101,48 @@ def run_race_model_per_person(data_i, sets_int, posteriors, Fs, sds, p_idx=0):
     while (time_sum == timedelta()) or (race.system.queue and race.system.clock.time < limit):
         race.system.advance() #set the current 
         event = race.system.advance() # get the participant's choice
-        data.append((s, event.time - time_sum)) # 1 if word is choice, else 0 
-        choices.append(race.choice.valmax())
+        data.append((s, event.time - time_sum, race.choice.argmax)) # 1 if word is choice, else 0 
+        choices.append("th" not in str(race.choice.argmax())) # 0 is th, else 1
         time_sum = event.time
         #load the next data
         i+=1
 
         if len(data_i) > i:
-            s =[int(m) for m in data_i.iloc[i]["set"].split("_ ")]
-            sample = populate_weights(race.sample.i, posteriors[sets_int.index(s)])
+            s = [int(m) for m in data_i.iloc[i]["set"].split("_ ")]
+            sample = populate_weights(race.sample.i, posteriors[p_idx, sets_int.index(s), i], ths[p_idx])
             params_data = numdict(race.params.i, {"p:model:F": Fs[p_idx], "p:model:sd": sds[p_idx]}, 0)
         else:
             break
         race.system.user_update(UpdateSite(race.sample, sample.d), UpdateSite(race.params, params_data.d))
     return data, choices
-
-
-def preprocess_targets_per_participant(sets_int, priors, hypotheses):
-    df = pd.read_csv('cog260-project/data/numbergame_data.csv')
-    participants = pd.unique(df["id"]) 
-    df_dict = {"id":[], "set":[], "yes_targets":[], "no_targets":[], "avg_rt":[], "best_hyppothesis":[]}
-    # 255 participants, each was shown 15 different sets, for each set 30 targets. 
-    for participant in tqdm(participants): 
-        p_df = df[df["id"] == participant]
-        sets = pd.unique(p_df["set"])
-        for s in sets:
-            s_df = p_df[p_df["set"] == s]
-            yes_set = pd.unique(s_df[s_df["rating"] == 1]["target"]).tolist()
-            no_set = pd.unique(s_df[(s_df["rating"] == 0)]["target"]).tolist()
-
-            assert list(yes_set) == yes_set 
-            assert list(no_set) == no_set
-
-            yes_set, no_set = set(yes_set), set(no_set)
-            # assert not len(yes_set.intersection(no_set)), f"{yes_set} {no_set}" -- strangely enough there are a couple participants for whom theyr sample without replacement assumption does not hold,idk why
-            avg_rt = s_df["rt"].mean()
-
-            s_indx = sets_int.index(set([int(m) for m in s.split("_ ")]))
-            assert s_indx != -1
-            h_idx = best_hypothesis(priors, hypotheses[s_indx], yes_set, no_set)
-
-            df_dict["id"].append(participant.item())
-            df_dict["set"].append(s)
-            df_dict["yes_targets"].append("_".join([str(m) for m in yes_set]))
-            df_dict["no_targets"].append("_".join([str(m) for m in no_set]))
-            df_dict["avg_rt"].append(avg_rt)
-            df_dict["best_hyppothesis"].append(h_idx)
-
-    df = pd.DataFrame.from_dict(df_dict)
-    return df, participants
-
-def best_hypothesis(priors, hypotheses, yes_set, no_set):
-    max_h = None
-    max_prior = 0
-    max_idx = -1
-
-    for i, h in enumerate(hypotheses):
-        yes = len(yes_set.intersection(set(h)))
-        no = len(no_set) - len(no_set.intersection(set(h)))
-        measure = (yes+no)/len(no_set.union(yes_set))
-        if not max_h or measure > max_h:
-            max_h = measure
-            max_idx = i
-            max_prior = priors[0, i]
-        elif measure == max_h and priors[0, i] >  max_prior:
-            max_h = measure
-            max_idx = i
-            max_prior = priors[0, i]
-    return max_idx
+import torch
+def get_target(df, participants: List[int]) -> torch.tensor:
+    #TODO: just like bernie does. 
+    pass
 
 def setup():
-    posteriors, priors, hypotheses, sets_int = b_inference()
-    new_df, participants = preprocess_targets_per_participant(sets_int, priors, hypotheses)
+    posteriors, sets_int = b_inference() # posterios are of size 606x15x30x101
+    df = pd.read_csv("cog260-project/data/number_game_data.csv")
+    #drop unnecessary cols:
+    df.drop(labels=["age", "firstlang", "gender", "education", "zipcode"])
+    participants = pd.unique(df["id"]).tolist()
 
-    #TODO: fitting parameters sd and F
+    # fit_parameters(df, participants, posteriors, sets_int)
+    #participant one hot matrix
+    participant_in = torch.eye((len(participants, participants)))
+
+    targets = get_target(df, participants)
+    gradient_descent(participant_in, targets, posteriors)
+
+    # run simulation per participant
+    corrects, data = [], []
 
     for i, p in enumerate(participants):
-        run_race_model_per_person(new_df[new_df["id"] == p.item()], sets_int, posteriors, Fs, sds, p_idx=i)
+        d, choices = run_race_model_per_person(df[df["id"] == p], sets_int, posteriors, Fs, sds, i)
+        data += d
+        corrects += (np.array(choices) == df[df["id"] == p]["rating"]).tolist()
+    
+    ca_rate = 100 * sum(corrects)/len(corrects)
 
 
 
