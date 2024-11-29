@@ -5,7 +5,7 @@ from datetime import timedelta
 from typing import *
 from tqdm import tqdm
 
-from bayesian_inference import b_inference, NUMHYPOTHESIS
+from bayesian_inference import info_gain, NUMHYPOTHESIS
 from fitting_params import gradient_descent
 
 class LogNormalRace(Process):
@@ -82,7 +82,7 @@ def populate_weights(weights_index, posteriors, th):
     return weights
 
 #run simulation:   
-def run_race_model_per_person(data_i, sets_int, posteriors, Fs, sds, ths, p_idx=0):
+def run_race_model_per_person(data_i, posteriors, Fs, sds, ths, p_idx=0):
     race = LogNormalRace("model")
     limit = timedelta(days=15)
 
@@ -91,7 +91,8 @@ def run_race_model_per_person(data_i, sets_int, posteriors, Fs, sds, ths, p_idx=
     time_sum = timedelta() # to get the true response time (else accumulated)
     #load up the first datapoint
     i = 0
-    s =[int(m) for m in data_i.iloc[i]["set"].split("_ ")]
+    s = data_i.iloc[i]["set"]
+    sets_int = pd.unique(data_i["set"])
     sample = populate_weights(race.sample.i, posteriors[p_idx, sets_int.index(s), i], ths[p_idx])
     
     #there will be no populating input -- since considdering the input is done in creating the posterior
@@ -117,32 +118,64 @@ def run_race_model_per_person(data_i, sets_int, posteriors, Fs, sds, ths, p_idx=
     return data, choices
 import torch
 def get_target(df, participants: List[int]) -> torch.tensor:
-    #TODO: just like bernie does. 
-    pass
+    targets = np.zeros((len(participants), 15, 30, 2))
+    flag_60_, flag_60 = 0, 0
+    for i, p in tqdm(enumerate(participants), total=len(participants)):
+        p_df = df[df["id"] == p]
+        sets_int = pd.unique(p_df["set"])
+        for j, s in enumerate(sets_int):
+            s_df = p_df[p_df["set"] == s]
+            k=0 
+            for _, l in s_df.iterrows():
+                assert type(l["rt"]) is float, f"{i} {j} {k}"
+                assert l["rt"]/1000 is not np.nan, f"{i} {j} {k} {l["rt"]}"
+                targets[i, j + flag_60_, k - 30*flag_60, 0] = l["rt"]/1000
+                targets[i, j + flag_60_, k-30*flag_60, 1] = l["rating"] == "yes"
+                k+=1
+                if k == 30 and len(s_df) == 60:
+                    flag_60 = 1
+                    flag_60_ = 1
+            flag_60=0
+        flag_60_ = 0
+    targets = np.where(np.isnan(targets), 400, targets)
+    targets = np.where(targets == 0, 400, targets)
+    return targets
 
 def setup():
-    posteriors, sets_int = b_inference() # posterios are of size 606x15x30x101
-    df = pd.read_csv("cog260-project/data/number_game_data.csv")
+    # target_posteriors, inf_gain = info_gain() # posterios are of size 606x15x30x101
+    target_posteriors = np.load("cog260-project/data/target_posts.npy")
+    inf_gain = np.load("cog260-project/data/inf_gain.npy")
+    target_posteriors -= 1e-6
+    target_posteriors = np.log(target_posteriors/(1-target_posteriors)) # logit
+    target_posteriors = target_posteriors[:, :, 1:, :]
+
+
+    df = pd.read_csv("cog260-project/data/numbergame_data.csv")
     #drop unnecessary cols:
-    df.drop(labels=["age", "firstlang", "gender", "education", "zipcode"])
+    df.drop(labels=["age", "firstlang", "gender", "education", "zipcode"], axis=1)
+    df.sort_values(by=['id', 'set'], inplace=True)
+
     participants = pd.unique(df["id"]).tolist()
 
     # fit_parameters(df, participants, posteriors, sets_int)
     #participant one hot matrix
-    participant_in = torch.eye((len(participants, participants)))
+    participant_in = torch.eye(len(participants))
 
     targets = get_target(df, participants)
-    gradient_descent(participant_in, targets, posteriors)
+    s_table = gradient_descent(participant_in, torch.from_numpy(targets), torch.from_numpy(inf_gain))
+    torch.save(s_table, "s_table_proj.pt")
+    Fs, ths, sds = s_table[:, -1].tolist(), s_table[:, -2].tolist(), s_table[:, -3].tolist()
 
     # run simulation per participant
     corrects, data = [], []
 
     for i, p in enumerate(participants):
-        d, choices = run_race_model_per_person(df[df["id"] == p], sets_int, posteriors, Fs, sds, i)
+        d, choices = run_race_model_per_person(df[df["id"] == p], inf_gain, Fs, sds, ths, i)
         data += d
         corrects += (np.array(choices) == df[df["id"] == p]["rating"]).tolist()
     
     ca_rate = 100 * sum(corrects)/len(corrects)
+    print(f"Correctness rate: {ca_rate}")
 
-
-
+if __name__ == "__main__":
+    setup()
