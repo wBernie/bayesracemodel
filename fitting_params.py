@@ -22,12 +22,11 @@ def cost(inputs, targets, weights, concept_scores):
 def log_likelihood(rts: torch.tensor, concept_scores: torch.tensor, choice: torch.tensor, F_i: float, sd_i: float, th_i:float) -> torch.tensor:
     # renaming
     target = rts #606x15x30
-    sd = sd_i.unsqueeze(-1)
-    F = F_i.unsqueeze(-1)
-    mean_nochoice = -th_i.unsqueeze(-1) + torch.log(F)
+    sd = sd_i.unsqueeze(-1).unsqueeze(-1)
+    F = F_i.unsqueeze(-1).unsqueeze(-1)
+    mean_nochoice = -th_i.unsqueeze(-1).unsqueeze(-1) + torch.log(F)
 
     z = math.sqrt(6)*sd/math.pi
-
     m = torch.log(torch.exp(concept_scores/z.unsqueeze(-1)).sum(axis=-1))*z #here we have 606x15x30
     mu = 1/z
     beta = torch.exp((torch.log(F) - m)/z)
@@ -46,7 +45,7 @@ def backward_pass(inputs, targets, weights, concept_scores):
     x = cost(inputs, targets, weights, concept_scores)
     return x
 
-def gradient_descent(inputs, targets, concept_scores, eta=1e-3, iterations=2500):
+def gradient_descent(inputs, targets, concept_scores, eta=1e-2, iterations=2500):
     #split the df into the different subjects experiments
     sub_table = torch.rand((inputs.shape[0], 2)) # 3 subject specific parameters 
     # sub_table[:, 0] = 0.9 + sub_table[:, 0]*0.1
