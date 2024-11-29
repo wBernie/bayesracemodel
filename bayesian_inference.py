@@ -3,6 +3,7 @@ import pandas as pd
 from concepts import *
 
 NUMHYPOTHESIS = 101
+CONSTANT = 1e-6
 
 def load_priors(csv_file: str) -> np.ndarray:
     """
@@ -85,13 +86,21 @@ def correct_sets(set: str) -> list:
         lists.append(btw(start = i[0], end = i[1]))
     return lists
 
-def set_likelihood(sets: set, hypotheses) -> np.ndarray:
-    likelihood = np.zeros((255, NUMHYPOTHESIS))
-    for i, s in enumerate(sets):
-        for j, hypothesis in enumerate(hypotheses[i]):
+def set_likelihood(s:set, hypotheses):
+    likelihood = np.zeros((1, NUMHYPOTHESIS))
+    for j, hypothesis in enumerate(hypotheses):
             h = set(hypothesis)
             common = s.intersection(h)
-            likelihood[i][j] = len(common)/len(s)
+            likelihood[0][j] = len(common)/len(s)
+    return likelihood
+
+def sets_likelihood(sets: set, hypotheses) -> np.ndarray:
+    '''
+    given set of sets and a set of hypotheses for each set, returns the likelihood of each hypothesis for each set
+    '''
+    likelihood = np.zeros((255, NUMHYPOTHESIS))
+    for i, s in enumerate(sets):
+        likelihood[i] = set_likelihood(s, hypotheses[i])
     return likelihood
 
 #returns a #sets by #hypotheses numpy array of likelihoods
@@ -131,12 +140,20 @@ def b_inference():
         sets_int.append(set_int)
         hypotheses.append(correct_sets(set_int))
 
-    likelihoods = set_likelihood(sets_int, hypotheses)
+    likelihoods = sets_likelihood(sets_int, hypotheses)
 
     posteriors = calc_posterior(load_priors('cog260-project/data/priorsheet.csv'), likelihoods)
     return posteriors, load_priors('cog260-project/data/priorsheet.csv'), hypotheses, sets_int
 
-if __name__ == "__main__":
+def info_gain():
+    '''
+    Returns a tuple of 606 x 15 x 31 x 101 array of posteriors and an array of 606 x 15 x 30 x 101 array of information gains
+
+    the first index is participant #
+    the 2nd index is set #
+    3rd is number of targets seen, with information gain starting at 1 and posteriors starting at 0
+    4th is concept #
+    '''
     file = pd.read_csv('cog260-project/data/numbergame_data.csv')
     data = preprocess(file)
     hypotheses = []
@@ -147,15 +164,64 @@ if __name__ == "__main__":
         sets_int.append(set_int)
         hypotheses.append(correct_sets(set_int))
 
-    likelihoods = set_likelihood(sets_int, hypotheses)
-
-    posteriors = calc_posterior(load_priors('cog260-project/data/priorsheet.csv'), likelihoods)
-
-    import pprint
-    pprint.pprint(posteriors)
-    print(posteriors.shape)
-    best_h = np.argmax(posteriors, axis=1)
-
-    likelihoods = likelihood(data, best_h, hypotheses)
-    print(likelihoods, likelihoods.shape)
+    priors = load_priors('cog260-project/data/priorsheet.csv')
+    dfhypotheses = pd.DataFrame(hypotheses)
+    dfhypotheses['set'] = list(sets_str)
+    file = file.sort_values(by=['id', 'set'])
+    # grouped = file.groupby(['id', 'set']).size().reset_index(name='count') # Find the maximum count for each 'id' 
+    # max_counts = grouped.loc[grouped.groupby('id')['count'].idxmax()] 
+    # max_counts.to_csv('test.csv')
+    # file = pd.merge(file, dflikelihoods, on='set', how='inner')
     
+
+    target_posteriors = np.zeros((len(file.id.unique()), 15, 31, 101))
+    participant_i = -1
+    s_i = -1
+    t_i=1
+    participant, s_orig, s = None, None, None
+    for line in file.itertuples():
+        if line.id != participant:
+            participant = line.id
+            participant_i += 1
+            s_i = -1
+        if line.set != s_orig or s_i == -1 or t_i == 31:
+            s_orig = line.set
+            s_i += 1
+            t_i = 1
+            s = line.set
+            hypothesis = dfhypotheses[dfhypotheses['set'] == s].iloc[0].tolist()[1:]
+            s = str_to_set(s)
+            target_posteriors[participant_i][s_i][0] =  calc_posterior(priors, set_likelihood(s, hypothesis))
+            
+        
+        s = s.union({line.target})
+        target_posteriors[participant_i][s_i][t_i] = calc_posterior(priors, set_likelihood(s, hypothesis))
+        t_i += 1
+    
+    target_posteriors += 1e-6
+    info_gain = np.log(target_posteriors[:, :, 1:]/ target_posteriors[:, :, :-1])
+    return target_posteriors, info_gain
+
+if __name__ == "__main__":
+    # file = pd.read_csv('cog260-project/data/numbergame_data.csv')
+    # data = preprocess(file)
+    # hypotheses = []
+    # sets_str = data.keys()
+    # sets_int = []
+    # for sets in sets_str:
+    #     set_int = str_to_set(sets)
+    #     sets_int.append(set_int)
+    #     hypotheses.append(correct_sets(set_int))
+
+    # likelihoods = sets_likelihood(sets_int, hypotheses)
+
+    # posteriors = calc_posterior(load_priors('cog260-project/data/priorsheet.csv'), likelihoods)
+
+    # import pprint
+    # pprint.pprint(posteriors)
+    # print(posteriors.shape)
+    # best_h = np.argmax(posteriors, axis=1)
+
+    # likelihoods = likelihood(data, best_h, hypotheses)
+    # print(likelihoods, likelihoods.shape)
+    info_gain()
