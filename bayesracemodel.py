@@ -82,7 +82,7 @@ def populate_weights(weights_index, posteriors, th):
     return weights
 
 #run simulation:   
-def run_race_model_per_person(data_i, sets_int, posteriors, Fs, sds, ths, p_idx=0):
+def run_race_model_per_person(data_i, posteriors, Fs, sds, ths, p_idx=0):
     race = LogNormalRace("model")
     limit = timedelta(days=15)
 
@@ -91,7 +91,8 @@ def run_race_model_per_person(data_i, sets_int, posteriors, Fs, sds, ths, p_idx=
     time_sum = timedelta() # to get the true response time (else accumulated)
     #load up the first datapoint
     i = 0
-    s =[int(m) for m in data_i.iloc[i]["set"].split("_ ")]
+    s = data_i.iloc[i]["set"]
+    sets_int = pd.unique(data_i["set"])
     sample = populate_weights(race.sample.i, posteriors[p_idx, sets_int.index(s), i], ths[p_idx])
     
     #there will be no populating input -- since considdering the input is done in creating the posterior
@@ -117,14 +118,27 @@ def run_race_model_per_person(data_i, sets_int, posteriors, Fs, sds, ths, p_idx=
     return data, choices
 import torch
 def get_target(df, participants: List[int]) -> torch.tensor:
-    #TODO: just like bernie does. 
-    pass
+    targets = np.zeros((len(participants), 15, 30, 2))
+    for i, p in enumerate(participants):
+        p_df = df[df["id"] == p]
+        sets_int = pd.unique(p_df["set"])
+        for j, s in enumerate(sets_int):
+            s_df = df[df["set"] == s]
+            for k, l in s_df.iterrows():
+                targets[i, j, k, 0] = l["rt"]
+                targets[i, j, k, 0] = l["rating"] == "yes"
+    return targets
 
 def setup():
-    posteriors, sets_int = b_inference() # posterios are of size 606x15x30x101
+    target_posteriors, info_gain = b_inference() # posterios are of size 606x15x30x101
+    target_posteriors = np.log(target_posteriors/1-target_posteriors) # logit
+
+
     df = pd.read_csv("cog260-project/data/number_game_data.csv")
     #drop unnecessary cols:
     df.drop(labels=["age", "firstlang", "gender", "education", "zipcode"])
+    df.sort_values(by=['id', 'set'], inplace=True)
+
     participants = pd.unique(df["id"]).tolist()
 
     # fit_parameters(df, participants, posteriors, sets_int)
@@ -132,13 +146,14 @@ def setup():
     participant_in = torch.eye((len(participants, participants)))
 
     targets = get_target(df, participants)
-    gradient_descent(participant_in, targets, posteriors)
+    s_table = gradient_descent(participant_in, targets, target_posteriors)
+    Fs, ths, sds = s_table[:, -1].tolist(), s_table[:, -2].tolist(), s_table[:, -3].tolist()
 
     # run simulation per participant
     corrects, data = [], []
 
     for i, p in enumerate(participants):
-        d, choices = run_race_model_per_person(df[df["id"] == p], sets_int, posteriors, Fs, sds, i)
+        d, choices = run_race_model_per_person(df[df["id"] == p], target_posteriors, Fs, sds, ths, i)
         data += d
         corrects += (np.array(choices) == df[df["id"] == p]["rating"]).tolist()
     
