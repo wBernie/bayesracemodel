@@ -13,23 +13,21 @@ def cost(inputs, targets, weights, concept_scores):
     outs = forward_pass(inputs, weights)
     subject_outs = outs
 
-    F, th, sd = subject_outs[:, -1].unsqueeze(-1), subject_outs[:, -2].unsqueeze(-1), subject_outs[:, -3].unsqueeze(-1) 
+    # F, th, sd = subject_outs[:, -1].unsqueeze(-1), subject_outs[:, -2].unsqueeze(-1), subject_outs[:, -3].unsqueeze(-1) 
+    F, th = subject_outs[:, -1].unsqueeze(-1), subject_outs[:, -2].unsqueeze(-1)
     #sd must be positive:
-    sd = sd ** 2 # the NN will adjust to make this a sqrt
-    return log_likelihood(targets[:, 0], concept_scores, targets[:, 1], F, sd, th)
+    sd = torch.ones_like(F)#sd ** 2 # the NN will adjust to make this a sqrt
+    return log_likelihood(targets[:, :, :, 0], concept_scores, targets[:, :, :, 1], F, sd, th)
 
 def log_likelihood(rts: torch.tensor, concept_scores: torch.tensor, choice: torch.tensor, F_i: float, sd_i: float, th_i:float) -> torch.tensor:
-
-    #unsqueeze somethings to match dimensions:
-    rts = rts.unsqueeze(1).unsqueeze(1) # 606x1x1 as comapred to 606x15x30x101
     # renaming
-    target = rts
-    sd = sd_i
-    F = F_i
-    mean_nochoice = -th_i + torch.log(F)
+    target = rts #606x15x30
+    sd = sd_i.unsqueeze(-1).unsqueeze(-1)
+    F = F_i.unsqueeze(-1).unsqueeze(-1)
+    mean_nochoice = -th_i.unsqueeze(-1).unsqueeze(-1) + torch.log(F)
 
     z = math.sqrt(6)*sd/math.pi
-    m = torch.log(torch.exp(concept_scores/z).sum(axis=-1, keepdim=True))*z #here we have 606x15x30
+    m = torch.log(torch.exp(concept_scores/z.unsqueeze(-1)).sum(axis=-1))*z #here we have 606x15x30
     mu = 1/z
     beta = torch.exp((torch.log(F) - m)/z)
 
@@ -47,14 +45,15 @@ def backward_pass(inputs, targets, weights, concept_scores):
     x = cost(inputs, targets, weights, concept_scores)
     return x
 
-def gradient_descent(inputs, targets, concept_scores, eta=1e-3, iterations=2500):
+def gradient_descent(inputs, targets, concept_scores, eta=1e-2, iterations=2500):
     #split the df into the different subjects experiments
-    sub_table = torch.rand((inputs.shape[0], 3)) # 3 subject specific parameters 
+    sub_table = torch.rand((inputs.shape[0], 2)) # 3 subject specific parameters 
+    # sub_table[:, 0] = 0.9 + sub_table[:, 0]*0.1
     sub_table = sub_table.clone().detach().requires_grad_(True)
 
     cost_over_time = []
 
-    pbar = tqdm(range(iterations))
+    pbar = tqdm(range(iterations), total=iterations)
 
     for k in pbar:
         c = backward_pass(inputs, targets, sub_table, concept_scores)
