@@ -86,6 +86,56 @@ def correct_sets(set: str) -> list:
         lists.append(btw(start = i[0], end = i[1]))
     return lists
 
+def concept_list(set: set):
+    lists = []
+    lists.append(even())
+    lists.append(odd())
+    lists.append(btw(set))
+    lists.append(primes())
+    lists.append(nonprimes())
+    lists.append(same(set))
+    lists.append(twodigit())
+    lists.append(onedigit())
+    lists.append(odd_sum())
+    lists.append(not_multiples(3))
+    mult = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17, 20, 25, 29, 33, 100]
+    for i in mult:
+        lists.append(multiples(i))
+    cont = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    for i in cont:
+        lists.append(contains(i))
+    lists.append(contains_even())
+    betweens = [[32, 100], [5, 100], [79, 100], [1, 81], [26, 100],[1, 49], [1, 9]]
+    for i in betweens:
+        lists.append(btw(start = i[0], end = i[1]))
+    lists.append(math(2, 3))
+    lists.append(math(2, 1))
+    lists.append([93])
+    betweens = [[1, 29],[1,64], [41, 100],[1, 99], [99, 100], [92, 100], [1, 3], [1, 82]]
+    for i in betweens:
+        lists.append(btw(start = i[0], end = i[1]))
+    digits = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    for i in digits:
+        lists.append(starts(i))
+    lists.append(starts_even())
+    lists.append(starts_odd())
+    for i in cont:
+        lists.append(ends(i))
+    lists.append(ends_even())
+    lists.append(ends_odd())
+    lists.append(start_end())
+    lists.append(sum_digit_eq(10))
+    lists.append(sum_digit_eq(9))
+    isList = [18, 84, 48, 43, 91, 31]
+    for i in isList:
+        lists.append([i])
+    lists.append(math(3, 1))
+    betweens = [[51, 100], [64, 100], [82, 100], [1, 42], [52, 100], [1, 82], [1, 49], [1, 44], [1, 69], [71, 100]]
+    for i in betweens:
+        lists.append(btw(start = i[0], end = i[1]))
+    return lists
+
+
 def set_likelihood(s:set, hypotheses):
     likelihood = np.zeros((1, NUMHYPOTHESIS))
     for j, hypothesis in enumerate(hypotheses):
