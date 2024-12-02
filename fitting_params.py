@@ -35,7 +35,7 @@ def log_likelihood(rts: torch.tensor, concept_scores: torch.tensor, choice: torc
         torch.log(0.5*erfc((torch.log(target) - mean_nochoice)/ sd))
     
     l_nword = (-torch.log(target * sd * math.sqrt(2* math.pi)) - 
-               ((torch.log(target) - mean_nochoice)**2) / (2 * sd**2) - (target/beta)**mu)
+               ((torch.log(target) - mean_nochoice)**2) / (2 * sd**2) - (target**mu/beta))
     
     likelihood = torch.where(choice.bool(), l_word, l_nword)
     likelihood = torch.where((-torch.inf < likelihood) & (likelihood < torch.inf), likelihood, torch.nan)
