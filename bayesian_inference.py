@@ -107,17 +107,22 @@ def sets_likelihood(sets: set, hypotheses) -> np.ndarray:
 def likelihood(data: dict, best_h, hypotheses) -> np.ndarray:
     correct = np.zeros((255))
     total = np.zeros(255)
-    for i, set in enumerate(data):
+    correct_s = np.zeros((255,100))
+    total_s = np.zeros((255,100))
+    for i, s in enumerate(data):
         hypothesis = hypotheses[i][best_h[i]]
         index = [i-1 for i in hypothesis]
-        correct_targets_yes = data[set][index, 1]
+        correct_targets_yes = data[s][index, 1]
         mask = np.ones(100, dtype=bool)
         mask[index] = False
-        correct_targets_no = data[set][mask, 0]
+        correct_targets_no = data[s][mask, 0]
         correct[i] = np.sum(correct_targets_yes) + np.sum(correct_targets_no)
-        total[i] = np.sum(data[set])
+        total[i] = np.sum(data[s])
 
-    return correct/total
+
+        for j in range(100):
+            correct_s[i][j] = j+1 in hypothesis
+    return correct/total, correct_s
 
 #creates a dict of all the responses by set
 def preprocess(data: pd.DataFrame) -> dict:
@@ -155,6 +160,8 @@ def info_gain():
     4th is concept #
     '''
     file = pd.read_csv('cog260-project/data/numbergame_data.csv')
+    file = file.sort_values(by=['id', 'set'])
+
     data = preprocess(file)
     hypotheses = []
     sets_str = data.keys()
@@ -166,13 +173,7 @@ def info_gain():
 
     priors = load_priors('cog260-project/data/priorsheet.csv')
     dfhypotheses = pd.DataFrame(hypotheses)
-    dfhypotheses['set'] = list(sets_str)
-    file = file.sort_values(by=['id', 'set'])
-    # grouped = file.groupby(['id', 'set']).size().reset_index(name='count') # Find the maximum count for each 'id' 
-    # max_counts = grouped.loc[grouped.groupby('id')['count'].idxmax()] 
-    # max_counts.to_csv('test.csv')
-    # file = pd.merge(file, dflikelihoods, on='set', how='inner')
-    
+    dfhypotheses['set'] = list(sets_str)    
 
     target_posteriors = np.zeros((len(file.id.unique()), 15, 31, 101))
     participant_i = -1
@@ -204,25 +205,66 @@ def info_gain():
     return target_posteriors, info_gain
 
 if __name__ == "__main__":
-    # file = pd.read_csv('cog260-project/data/numbergame_data.csv')
-    # data = preprocess(file)
-    # hypotheses = []
-    # sets_str = data.keys()
-    # sets_int = []
-    # for sets in sets_str:
-    #     set_int = str_to_set(sets)
-    #     sets_int.append(set_int)
-    #     hypotheses.append(correct_sets(set_int))
+    file = pd.read_csv('cog260-project/data/numbergame_data.csv')
+    file = file.sort_values(by=['id', 'set'])
+    data = preprocess(file)
+    hypotheses = []
+    sets_str = data.keys()
+    sets_int = []
+    for sets in sets_str:
+        set_int = str_to_set(sets)
+        sets_int.append(set_int)
+        hypotheses.append(correct_sets(set_int))
 
-    # likelihoods = sets_likelihood(sets_int, hypotheses)
+    likelihoods = sets_likelihood(sets_int, hypotheses)
 
-    # posteriors = calc_posterior(load_priors('cog260-project/data/priorsheet.csv'), likelihoods)
+    posteriors = calc_posterior(load_priors('cog260-project/data/priorsheet.csv'), likelihoods)
 
-    # import pprint
-    # pprint.pprint(posteriors)
-    # print(posteriors.shape)
-    # best_h = np.argmax(posteriors, axis=1)
+    import pprint
+    pprint.pprint(posteriors)
+    print(posteriors.shape)
+    best_h = np.argmax(posteriors, axis=1)
 
-    # likelihoods = likelihood(data, best_h, hypotheses)
-    # print(likelihoods, likelihoods.shape)
-    info_gain()
+    likelihoods, likelihoods_s = likelihood(data, best_h, hypotheses)
+    print(likelihoods, likelihoods.shape)
+
+    print(np.mean(likelihoods), np.var(likelihoods))
+
+    answer = np.zeros((255,100))
+    total = np.zeros((255, 100))
+    set_str = list(sets_str)
+    for l in file.itertuples():
+        answer[list(sets_str).index(l.set), l.target -1] += 1*(l.rating)
+        total[list(sets_str).index(l.set), l.target -1] += 1
+
+    p_average = answer/total
+
+
+    import matplotlib.pyplot as plt
+
+    for s in range(255):
+        
+        plt.figure(figsize=(10, 6))
+        
+        # Bar plot for model aggregate
+        plt.bar(range(100), p_average[s], alpha=0.5, color='blue', label='Data')
+        # Bar plot for data aggregate
+        plt.bar(range(100), likelihoods_s[s], alpha=0.5, color='red', label='Bayes')
+        
+        
+        
+        # Set y-axis limits the same for all plots
+        plt.ylim(0, 1.1)
+        
+        plt.title(f'Set {list(sets_str)[s]}')
+        plt.xlabel('Number')
+        plt.ylabel('Probability')
+        plt.legend()
+        
+        plt.tight_layout()
+        plt.savefig(f"cog260-project/figures_ig/bayesset{s}.png")
+        plt.close()
+
+
+
+    # info_gain()
