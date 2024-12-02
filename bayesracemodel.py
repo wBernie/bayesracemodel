@@ -101,7 +101,7 @@ def run_race_model_per_person(data_i, posteriors, Fs, sds, ths, p_idx=0):
     sample = populate_weights(race.sample.i, posteriors[p_idx, sets_int.index(s), j], ths[p_idx])
     
     #there will be no populating input -- since considdering the input is done in creating the posterior
-    params_data = numdict(race.params.i, {"p:model:F": Fs[p_idx], "p:model:sd": math.sqrt(sds[p_idx])}, 0)
+    params_data = numdict(race.params.i, {"p:model:F": Fs[p_idx], "p:model:sd": (sds[p_idx])}, 0)
     race.system.user_update(UpdateSite(race.sample, sample.d), UpdateSite(race.params, params_data.d))
 
     while (time_sum == timedelta()) or (race.system.queue and race.system.clock.time < limit):
@@ -142,7 +142,7 @@ def get_target(df, participants: List[int]) -> torch.tensor:
                 assert type(l["rt"]) is float, f"{i} {j} {k}"
                 assert l["rt"]/1000 is not np.nan, f"{i} {j} {k} {l["rt"]}"
                 targets[i, j + flag_60_, k - 30*flag_60, 0] = l["rt"]/1000
-                targets[i, j + flag_60_, k-30*flag_60, 1] = l["rating"] == "yes"
+                targets[i, j + flag_60_, k-30*flag_60, 1] = l["rating"] == 1
                 k+=1
                 if k == 30 and len(s_df) == 60:
                     flag_60 = 1
@@ -150,38 +150,50 @@ def get_target(df, participants: List[int]) -> torch.tensor:
             flag_60=0
         flag_60_ = 0
     targets = np.where(np.isnan(targets), 400, targets)
-    targets = np.where(targets == 0, 400, targets)
+    targets[:, :, :, 0] = np.where(targets[:, :, :, 0] == 0, 400, targets[:, :, :, 0]) # dummy variable -- otherwise we lose parallelism
     return targets
 
-def estimate_F(scores, targets):
+def estimate_F(scores, targets, yes_mask):
     p_df_rt = targets.reshape(606, -1)
-    mean_logF = np.nanmean(np.log(p_df_rt), axis=-1) + np.nanmean(scores.max(axis=-1).reshape(606, -1))
+    yes_mask = yes_mask.reshape(606, -1)
+    mean_logF = np.zeros((606,))
+    for i in range(606):
+        mean_logF[i] = np.nanmean(np.log(p_df_rt[i][yes_mask[i]]), axis=-1) + np.nanmean(scores[i].max(axis=-1).flatten()[yes_mask[i]])
     return np.exp(mean_logF)
 
-def estimate_th(targets, F):
+def estimate_th(targets, F, no_mask):
     p_df_rt = targets.reshape(606, -1)
-    mean_th = np.log(F) - np.nanmean(np.log(p_df_rt), axis=-1)
+    no_mask = no_mask.reshape(606, -1)
+    mean_th = np.zeros((606,))
+    for i in range(606):
+        mean_th[i] = np.log(F[i]) - np.nanmean(np.log(p_df_rt[i][no_mask[i]]), axis=-1)
     return mean_th
 
-def estimate_sd(targets, F, th):
+def estimate_sd(targets, F, no_mask):
     p_df_rt = targets.reshape(606, -1)
-    st = np.nanstd(p_df_rt, axis=-1)/(F**2)
-    st = np.sqrt(np.log(1+(st**2)/(th**2))) # https://math.stackexchange.com/questions/4658759/lognormal-distribution-mean-and-variance-of-logarithm-of-distribution
+    no_mask = no_mask.reshape(606, -1)
+    st = np.zeros((606,))
+    for i in range(606):
+        st[i] = np.nanstd(np.log(p_df_rt[i][no_mask[i]]), axis=-1)
     return st
 
 def estimate_parameters(scores, targets):
     print("Estimating parameters!")
-    rts, choices = targets[:, :, :, 0],targets[:, :, :, 1] 
-    min_F, min_th, min_sd = estimate_F(scores, rts), estimate_th(rts, estimate_F(scores, rts)), estimate_sd(rts, estimate_F(scores, rts), estimate_th(rts, estimate_F(scores, rts)))
+    rts, choices = targets[:, :, :, 0],targets[:, :, :, 1] == 1
+    score_yes_mask = choices[:,:, :, np.newaxis]
+    min_F = estimate_F(scores, rts, score_yes_mask)
+    min_th = estimate_th(rts, min_F, ~score_yes_mask)
+    min_sd = estimate_sd(rts, min_F, ~score_yes_mask)
     F, TH, SD = min_F, min_th, min_sd
+    # print(F, TH, SD)
     max_lk = -np.inf
     # for f in tqdm(np.arange(-0.3, 0.3, 0.1)):
     for f in tqdm(np.arange(-20, 20, 4)):
         f = np.where((F+f) > 0, F+f, F)
-        # for sd in np.arange(-1, 1, 0.3):
-        for sd in np.arange(0.0001, 0.002, 0.0005):
-            sd = SD + sd
-            for th in np.arange(-6, 6, 2):
+        for sd in np.arange(-1, 1, 0.3):
+        # for sd in np.arange(0.0001, 0.002, 0.0005):
+            sd = np.where((SD + sd) > 0, SD+sd, 0.1)
+            for th in np.arange(-1.5, 1.5, 0.25):
                 th = th+TH
                 lk = log_likelihood(torch.from_numpy(rts), torch.from_numpy(scores), torch.from_numpy(choices), torch.from_numpy(f), torch.from_numpy(sd), torch.from_numpy(th))
                 if lk > max_lk:
@@ -243,11 +255,68 @@ def plot_distribution(df, choices, participants):
         plt.legend()
         
         plt.tight_layout()
-        plt.savefig(f"cog260-project/figures_ig/set{i}.png")
+        plt.savefig(f"cog260-project/figures_targets/set{i}.png")
+
+def plot_distribution_posteriors(df, participants, posteriors, hypotheses):
+    print("plotting")
+    data_aggregate = np.zeros((255, 100))
+    model_aggregate = np.zeros((255, 100))
+
+    data_aggregate_counts = np.zeros((255, 100))
+
+    set_ints = pd.unique(df["set"]).tolist()
+
+    flag_60, flag_60_ = 0, 0
+
+    for i, p in tqdm(enumerate(participants[:len(participants)]), total=len(participants)):
+        p_df = df[df["id"] == p]
+        sets_int = pd.unique(p_df["set"]).tolist()
+        for j, s in enumerate(sets_int):
+            s_df = p_df[p_df["set"] == s]
+            k=0 
+            unique_targets = pd.unique(s_df["target"]).tolist()
+            for _, l in s_df.iterrows():
+                data_aggregate[set_ints.index(l["set"]), l["target"] - 1] += 1*(l["rating"])
+
+                best_concept = posteriors[i, sets_int.index(l["set"])+ flag_60_, unique_targets.index(l["target"])].argmax()
+                numbers = hypotheses[i][best_concept]
+
+                model_aggregate[set_ints.index(l["set"]) + flag_60_, unique_targets.index(l["target"])] += int(int(l["target"]) in numbers)#choices[i][0][(j + flag_60_)*15 + k - 30*flag_60]
+
+                data_aggregate_counts[set_ints.index(l["set"])+ flag_60_, l["target"] - 1] += 1
+                k+=1
+                if k == 30 and len(s_df) == 60:
+                    flag_60 = 1
+                    flag_60_ = 1
+            flag_60=0
+        flag_60_ = 0
+
+    data_aggregate = data_aggregate / data_aggregate_counts
+    model_aggregate = model_aggregate/data_aggregate_counts
+
+   # Plotting separate figures for each set
+    for i in tqdm(range(255)):
+        plt.figure(figsize=(10, 6))
+        
+        # Bar plot for data aggregate
+        plt.bar(range(100), data_aggregate[i], alpha=0.5, color='blue', label='Data')
+        # Bar plot for model aggregate
+        plt.bar(range(100), model_aggregate[i], alpha=0.5, color='red', label='Model')
+        
+        # Set y-axis limits the same for all plots
+        plt.ylim(0, 1.1)
+        
+        plt.title(f'Set {set_ints[i]}')
+        plt.xlabel('Number')
+        plt.ylabel('Probability')
+        plt.legend()
+        
+        plt.tight_layout()
+        plt.savefig(f"cog260-project/figures_posteriors/set{i}.png")
 
 
 def setup():
-    # target_posteriors, inf_gain = info_gain() # posterios are of size 606x15x30x101
+    # target_posteriors, inf_gain, hypotheses = info_gain() # posterios are of size 606x15x30x101
     target_posteriors = np.load("cog260-project/data/target_posts.npy")
     inf_gain = np.load("cog260-project/data/inf_gain.npy")
     target_posteriors -= 1e-6
@@ -263,28 +332,29 @@ def setup():
     participants = pd.unique(df["id"]).tolist()
 
 
-    targets = get_target(df, participants)
-    scores = inf_gain
-    Fs, ths, sds = estimate_parameters(scores, targets)
+    # targets = get_target(df, participants)
+    # scores = inf_gain
+    # Fs, ths, sds = estimate_parameters(scores, targets)
 
-    # run simulation per participant
-    corrects, chcs, data = [], [], []
-    print("Fitting complete, running race model")
-    for i, p in tqdm(enumerate(participants[:len(participants)]), total=len(participants)):
-        d, choices = run_race_model_per_person(df[df["id"] == p], scores, Fs, sds, ths, i)
-        data.append(d)
-        chcs.append([choices])
-        corrects += (np.array(choices) == df[df["id"] == p]["rating"]).tolist()
+    # # run simulation per participant
+    # corrects, chcs, data = [], [], []
+    # print("Fitting complete, running race model")
+    # for i, p in tqdm(enumerate(participants[:len(participants)]), total=len(participants)):
+    #     d, choices = run_race_model_per_person(df[df["id"] == p], scores, Fs, sds, ths, i)
+    #     data.append(d)
+    #     chcs.append([choices])
+    #     corrects += (np.array(choices) == df[df["id"] == p]["rating"]).tolist()
     
-    ca_rate = 100 * sum(corrects)/len(corrects)
-    print(f"Correctness rate: {ca_rate}")
+    # ca_rate = 100 * sum(corrects)/len(corrects)
+    # print(f"Correctness rate: {ca_rate}")
 
-    # import pickle
-    # f = open("mychache.pkl", "rb")
-    # chcs = pickle.load(f)
-    # f.close()
+    import pickle
+    f = open("targetscache.pkl", "rb")
+    chcs = pickle.load(f)
+    f.close()
 
     plot_distribution(df, chcs, participants)
+    # plot_distribution_posteriors(df, participants, target_posteriors, hypotheses)
 
 if __name__ == "__main__":
     setup()
