@@ -332,26 +332,26 @@ def setup():
     participants = pd.unique(df["id"]).tolist()
 
 
-    # targets = get_target(df, participants)
-    # scores = inf_gain
-    # Fs, ths, sds = estimate_parameters(scores, targets)
+    targets = get_target(df, participants)
+    scores = inf_gain
+    Fs, ths, sds = estimate_parameters(scores, targets)
 
-    # # run simulation per participant
-    # corrects, chcs, data = [], [], []
-    # print("Fitting complete, running race model")
-    # for i, p in tqdm(enumerate(participants[:len(participants)]), total=len(participants)):
-    #     d, choices = run_race_model_per_person(df[df["id"] == p], scores, Fs, sds, ths, i)
-    #     data.append(d)
-    #     chcs.append([choices])
-    #     corrects += (np.array(choices) == df[df["id"] == p]["rating"]).tolist()
+    # run simulation per participant
+    corrects, chcs, data = [], [], []
+    print("Fitting complete, running race model")
+    for i, p in tqdm(enumerate(participants[:len(participants)]), total=len(participants)):
+        d, choices = run_race_model_per_person(df[df["id"] == p], scores, Fs, sds, ths, i)
+        data.append(d)
+        chcs.append([choices])
+        corrects += (np.array(choices) == df[df["id"] == p]["rating"]).tolist()
     
-    # ca_rate = 100 * sum(corrects)/len(corrects)
-    # print(f"Correctness rate: {ca_rate}")
+    ca_rate = 100 * sum(corrects)/len(corrects)
+    print(f"Correctness rate: {ca_rate}")
 
-    import pickle
-    f = open("targetscache.pkl", "rb")
-    chcs = pickle.load(f)
-    f.close()
+    # import pickle
+    # f = open("targetscache.pkl", "rb")
+    # chcs = pickle.load(f)
+    # f.close()
 
     plot_distribution(df, chcs, participants)
     # plot_distribution_posteriors(df, participants, target_posteriors, hypotheses)
