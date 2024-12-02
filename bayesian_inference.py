@@ -194,8 +194,8 @@ def info_gain():
             s = str_to_set(s)
             target_posteriors[participant_i][s_i][0] =  calc_posterior(priors, set_likelihood(s, hypothesis))
             
-        
-        s = s.union({line.target})
+        if line.rating:
+            s = s.union({line.target})
         target_posteriors[participant_i][s_i][t_i] = calc_posterior(priors, set_likelihood(s, hypothesis))
         t_i += 1
     
