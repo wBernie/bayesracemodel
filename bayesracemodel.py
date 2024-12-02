@@ -166,7 +166,6 @@ def estimate_th(targets, F):
 def estimate_sd(targets, F, th):
     p_df_rt = targets.reshape(606, -1)
     st = np.nanstd(p_df_rt, axis=-1)/(F**2)
-    st = np.sqrt(np.log(1+(st**2)/(th**2))) # https://math.stackexchange.com/questions/4658759/lognormal-distribution-mean-and-variance-of-logarithm-of-distribution
     return st
 
 def estimate_parameters(scores, targets):
