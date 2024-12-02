@@ -244,7 +244,7 @@ def info_gain():
             s = str_to_set(s)
             target_posteriors[participant_i][s_i][0] =  calc_posterior(priors, set_likelihood(s, hypothesis))
             
-        if line.rating:
+        if line.rating == 1:
             s = s.union({line.target})
         target_posteriors[participant_i][s_i][t_i] = calc_posterior(priors, set_likelihood(s, hypothesis))
         t_i += 1
@@ -252,69 +252,69 @@ def info_gain():
     target_posteriors += 1e-6
     info_gain = np.log(target_posteriors[:, :, 1:]/ target_posteriors[:, :, :-1])
     target_posteriors = np.delete(target_posteriors, 0, 2)
-    return target_posteriors, info_gain
+    return target_posteriors, info_gain, hypotheses
 
 if __name__ == "__main__":
-    file = pd.read_csv('cog260-project/data/numbergame_data.csv')
-    file = file.sort_values(by=['id', 'set'])
-    data = preprocess(file)
-    hypotheses = []
-    sets_str = data.keys()
-    sets_int = []
-    for sets in sets_str:
-        set_int = str_to_set(sets)
-        sets_int.append(set_int)
-        hypotheses.append(correct_sets(set_int))
+    # file = pd.read_csv('cog260-project/data/numbergame_data.csv')
+    # file = file.sort_values(by=['id', 'set'])
+    # data = preprocess(file)
+    # hypotheses = []
+    # sets_str = data.keys()
+    # sets_int = []
+    # for sets in sets_str:
+    #     set_int = str_to_set(sets)
+    #     sets_int.append(set_int)
+    #     hypotheses.append(correct_sets(set_int))
 
-    likelihoods = sets_likelihood(sets_int, hypotheses)
+    # likelihoods = sets_likelihood(sets_int, hypotheses)
 
-    posteriors = calc_posterior(load_priors('cog260-project/data/priorsheet.csv'), likelihoods)
+    # posteriors = calc_posterior(load_priors('cog260-project/data/priorsheet.csv'), likelihoods)
 
-    import pprint
-    pprint.pprint(posteriors)
-    print(posteriors.shape)
-    best_h = np.argmax(posteriors, axis=1)
+    # import pprint
+    # pprint.pprint(posteriors)
+    # print(posteriors.shape)
+    # best_h = np.argmax(posteriors, axis=1)
 
-    likelihoods, likelihoods_s = likelihood(data, best_h, hypotheses)
-    print(likelihoods, likelihoods.shape)
+    # likelihoods, likelihoods_s = likelihood(data, best_h, hypotheses)
+    # print(likelihoods, likelihoods.shape)
 
-    print(np.mean(likelihoods), np.var(likelihoods))
+    # print(np.mean(likelihoods), np.var(likelihoods))
 
-    answer = np.zeros((255,100))
-    total = np.zeros((255, 100))
-    set_str = list(sets_str)
-    for l in file.itertuples():
-        answer[list(sets_str).index(l.set), l.target -1] += 1*(l.rating)
-        total[list(sets_str).index(l.set), l.target -1] += 1
+    # answer = np.zeros((255,100))
+    # total = np.zeros((255, 100))
+    # set_str = list(sets_str)
+    # for l in file.itertuples():
+    #     answer[list(sets_str).index(l.set), l.target -1] += 1*(l.rating)
+    #     total[list(sets_str).index(l.set), l.target -1] += 1
 
-    p_average = answer/total
+    # p_average = answer/total
 
 
-    import matplotlib.pyplot as plt
+    # import matplotlib.pyplot as plt
 
-    for s in range(255):
+    # for s in range(255):
         
-        plt.figure(figsize=(10, 6))
+    #     plt.figure(figsize=(10, 6))
         
-        # Bar plot for model aggregate
-        plt.bar(range(100), p_average[s], alpha=0.5, color='blue', label='Data')
-        # Bar plot for data aggregate
-        plt.bar(range(100), likelihoods_s[s], alpha=0.5, color='red', label='Bayes')
+    #     # Bar plot for model aggregate
+    #     plt.bar(range(100), p_average[s], alpha=0.5, color='blue', label='Data')
+    #     # Bar plot for data aggregate
+    #     plt.bar(range(100), likelihoods_s[s], alpha=0.5, color='red', label='Bayes')
         
         
         
-        # Set y-axis limits the same for all plots
-        plt.ylim(0, 1.1)
+    #     # Set y-axis limits the same for all plots
+    #     plt.ylim(0, 1.1)
         
-        plt.title(f'Set {list(sets_str)[s]}')
-        plt.xlabel('Number')
-        plt.ylabel('Probability')
-        plt.legend()
+    #     plt.title(f'Set {list(sets_str)[s]}')
+    #     plt.xlabel('Number')
+    #     plt.ylabel('Probability')
+    #     plt.legend()
         
-        plt.tight_layout()
-        plt.savefig(f"cog260-project/figures_ig/bayesset{s}.png")
-        plt.close()
+    #     plt.tight_layout()
+    #     plt.savefig(f"cog260-project/figures_ig/bayesset{s}.png")
+    #     plt.close()
 
 
 
-    # info_gain()
+    info_gain()
